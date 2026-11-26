@@ -1,4 +1,4 @@
-import {forecast,headlineTone,type PricePoint} from "./model";
+import {forecast,headlineTone,type PricePoint,type ForecastContext} from "./model";
 export type Article={title:string;url:string;domain:string;published:string;country:string;sentiment:number};
 export type Quote={price:number;changePercent:number|null;currency:string;asOf:string;source:string;delayed:boolean};
 export type Fundamentals={marketCapMillions:number|null;peTTM:number|null;epsTTM:number|null;high52Week:number|null;low52Week:number|null};
@@ -20,6 +20,40 @@ export async function getIntelligence(symbol:string,exchange:string):Promise<Int
  const dailySymbol=indian?null:symbol.toLowerCase()+".us";
  let quote:Quote|null=null,liveQuote:Quote|null=null,history:PricePoint[]=[],profile:Intelligence["profile"]=null,fundamentals:Fundamentals|null=null,articles:Article[]=[],macroArticles:Article[]=[];
  const promises:Promise<void>[]=[];
+ const modelContext:ForecastContext={};
+ const historySources:Promise<void>[]=[];
+ const benchmark=async(code:string):Promise<PricePoint[]>=>{
+  try{
+   const csv=await fetchText("https://stooq.com/q/d/l/?"+new URLSearchParams({s:code,i:"d"}));
+   return csv.trim().split(/\r?\n/).slice(1).map(line=>{const v=line.split(",");return{date:v[0],close:Number(v[4]),volume:Number(v[5])||0}})
+    .filter(p=>/^\d{4}-\d{2}-\d{2}$/.test(p.date)&&p.close>0);
+  }catch{return []}
+ };
+ if(!indian){
+  historySources.push((async()=>{const rows=await benchmark("spy.us");if(rows.length>=120)modelContext.market=rows;})());
+  historySources.push((async()=>{const rows=await benchmark("gld.us");if(rows.length>=120)modelContext.safeHaven=rows;})());
+ }
+ if(key){
+  historySources.push((async()=>{try{
+   const now=new Date(),start=new Date(now.getTime()-365*86400000);
+   const params=new URLSearchParams({symbol:stockCode,from:start.toISOString().slice(0,10),to:now.toISOString().slice(0,10),token:key});
+   const raw=await fetchJson("https://finnhub.io/api/v1/company-news?"+params) as Array<{datetime?:number;headline?:string}>;
+   if(Array.isArray(raw)){
+    const events=raw.filter(x=>Number.isFinite(x.datetime)&&!!x.headline).map(x=>({publishedAt:new Date(x.datetime!*1000).toISOString(),title:x.headline!}));
+    if(events.length>=30){modelContext.companyNews=events;modelContext.companyNewsCoverage={from:start.toISOString().slice(0,10),to:now.toISOString().slice(0,10)}}
+    else warnings.push("Historical news sparse; not used as a training input.");
+   }
+  }catch{warnings.push("Historical company-news model feed unavailable.");}})());
+  historySources.push((async()=>{try{
+   const raw=await fetchJson("https://finnhub.io/api/v1/stock/earnings?"+new URLSearchParams({symbol:stockCode,limit:"20",token:key})) as Array<{date?:string;surprisePercent?:number}>;
+   if(Array.isArray(raw)){
+    const events=raw.filter(v=>!!v.date&&/^\d{4}-\d{2}-\d{2}$/.test(v.date!)&&Number.isFinite(v.surprisePercent))
+      .map(v=>({publishedAt:v.date!,earningsSurprisePercent:v.surprisePercent}));
+    if(events.length>=4)modelContext.fundamentals=events;
+   }
+  }catch{warnings.push("Historical earnings feed unavailable.");}})());
+ }
+
  promises.push((async()=>{
   // Prefer a licensed global provider when configured, with a free US historical fallback.
   if(twelve){
@@ -27,7 +61,7 @@ export async function getIntelligence(symbol:string,exchange:string):Promise<Int
     const params=new URLSearchParams({symbol,exchange,interval:"1day",outputsize:"500",apikey:twelve});
     const raw=await fetchJson("https://api.twelvedata.com/time_series?"+params) as {status?:string;message?:string;meta?:{currency?:string};values?:Array<{datetime:string;close:string;volume?:string}>};
     if(raw.status==="error")throw new Error("Twelve Data returned an error.");
-    history=(raw.values||[]).map(p=>({date:p.datetime,close:Number(p.close),volume:Number(p.volume)||0})).filter(p=>/^\\d{4}-\\d{2}-\\d{2}$/.test(p.date)&&p.close>0).sort((a,b)=>a.date.localeCompare(b.date));
+    history=(raw.values||[]).map(p=>({date:p.datetime,close:Number(p.close),volume:Number(p.volume)||0})).filter(p=>/^\d{4}-\\d{2}-\\d{2}$/.test(p.date)&&p.close>0).sort((a,b)=>a.date.localeCompare(b.date));
     if(history.length){
       const cur=history.at(-1)!,prev=history.at(-2);
       quote={price:cur.close,changePercent:prev?+((cur.close/prev.close-1)*100).toFixed(2):null,currency:raw.meta?.currency||(indian?"INR":"USD"),asOf:cur.date,source:"Twelve Data daily closing prices",delayed:true};
@@ -40,7 +74,7 @@ export async function getIntelligence(symbol:string,exchange:string):Promise<Int
     const fmt=(v:Date)=>v.toISOString().slice(0,10).replace(/-/g,"");
     const params=new URLSearchParams({s:dailySymbol,d1:fmt(start),d2:fmt(now),i:"d"});
     const csv=await fetchText("https://stooq.com/q/d/l/?"+params);
-    history=csv.trim().split(/\\r?\\n/).slice(1).map(row=>{const v=row.split(",");return{date:v[0],close:Number(v[4]),volume:Number(v[5])||0}}).filter(p=>/^\\d{4}-\\d{2}-\\d{2}$/.test(p.date)&&p.close>0);
+    history=csv.trim().split(/\r?\n/).slice(1).map(row=>{const v=row.split(",");return{date:v[0],close:Number(v[4]),volume:Number(v[5])||0}}).filter(p=>/^\d{4}-\\d{2}-\\d{2}$/.test(p.date)&&p.close>0);
     if(history.length){
      const cur=history.at(-1)!,prev=history.at(-2);
      quote={price:cur.close,changePercent:prev?+((cur.close/prev.close-1)*100).toFixed(2):null,currency:"USD",asOf:cur.date,source:"Stooq daily closing data",delayed:true};
@@ -81,9 +115,9 @@ export async function getIntelligence(symbol:string,exchange:string):Promise<Int
   const seen=new Set<string>();
   macroArticles=(raw.articles||[]).filter(a=>!!a.url&&!!a.title).map(a=>({title:a.title!,url:a.url!,domain:sourceDomain(a.url!),published:a.seendate||"",country:a.sourcecountry||"",sentiment:headlineTone(a.title!)})).filter(a=>{if(!trusted(a.domain)||seen.has(a.url))return false;seen.add(a.url);return true}).slice(0,10);
  }catch{warnings.push("Macro news feed temporarily unavailable.");}})());
- await Promise.all(promises);
+ await Promise.all([...promises,...historySources]);
  if(liveQuote)quote=liveQuote;
  const newsTone=articles.length?+(articles.reduce((a,n)=>a+n.sentiment,0)/articles.length).toFixed(2):null;
  if(!key)warnings.push("Configure FINNHUB_API_KEY for live quotes and company profiles; daily US closing data is available when the public feed responds.");
- return{symbol,exchange,quote,history:history.slice(-120),articles,macroArticles,profile,fundamentals,short:forecast(history,5),long:forecast(history,20),newsTone,warnings,generatedAt:new Date().toISOString()};
+ return{symbol,exchange,quote,history:history.slice(-120),articles,macroArticles,profile,fundamentals,short:forecast(history,5,modelContext),long:forecast(history,20,modelContext),newsTone,warnings,generatedAt:new Date().toISOString()};
 }

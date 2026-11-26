@@ -13,7 +13,7 @@ function HistoryChart({points}:{points:Intelligence["history"]}){
 }
 function ForecastPanel({item,label}:{item:Intelligence["short"];label:string}){
  const signal=item.direction==="up"?"Leaning up":item.direction==="down"?"Leaning down":"No reliable signal";
- return <div className="marketforecast"><div className="muted">{label} · {item.horizonDays} trading days</div><h3>{item.direction==="up"?<TrendingUp size={21}/>:item.direction==="down"?<TrendingDown size={21}/>:<ShieldAlert size={21}/>} {signal}</h3><p>{item.probabilityUp===null?"Probability withheld":pct(item.probabilityUp)+" estimated upward probability"}</p><div className="muted tiny">Training observations: {item.sampleSize} · Holdout: {item.testSize}</div><div className="muted tiny">Brier: {item.brierScore??"—"} · Baseline: {item.baselineBrier??"—"} · Holdout accuracy: {item.accuracy===null?"—":pct(item.accuracy)}</div><p className="tiny muted">{item.note}</p></div>;
+ return <div className="marketforecast"><div className="muted">{label} · {item.horizonDays} trading days</div><h3>{item.direction==="up"?<TrendingUp size={21}/>:item.direction==="down"?<TrendingDown size={21}/>:<ShieldAlert size={21}/>} {signal}</h3><p>{item.probabilityUp===null?"Probability withheld":pct(item.probabilityUp)+" estimated upward probability"}</p><div className="muted tiny">Training inputs: {item.signalInputs?.join(", ")||"Prices only"}</div><div className="muted tiny">Training observations: {item.sampleSize} · Holdout: {item.testSize}</div><div className="muted tiny">Brier: {item.brierScore??"—"} · Baseline: {item.baselineBrier??"—"} · Holdout accuracy: {item.accuracy===null?"—":pct(item.accuracy)}</div><p className="tiny muted">{item.note}</p></div>;
 }
 export function MarketIntelligence({items}:{items:Item[]}){
  const [selected,setSelected]=useState(items[0]?.id||""),[result,setResult]=useState<Intelligence|null>(null);
@@ -48,7 +48,7 @@ export function MarketIntelligence({items}:{items:Item[]}){
     </div>
     <div className="marketsection"><h3>Worldwide market and geopolitical developments</h3><p className="muted tiny">General macro news — these events are not automatically relevant to {result.symbol}, and StockPulse does not assume they cause a specific price move.</p>{result.macroArticles?.length?<div className="newslist">{result.macroArticles.map(a=><a key={a.url} className="newsitem" href={a.url} target="_blank" rel="noopener noreferrer"><strong>{a.title}</strong><div className="muted tiny">{a.domain} · {a.country||"Origin unknown"} · {a.published||"Date unknown"} <ExternalLink size={12}/></div></a>)}</div>:<p className="muted">Macro headlines are currently unavailable.</p>}</div>
     {result.warnings.length>0&&<div className="marketwarnings"><strong>Data limitations</strong>{result.warnings.map((w,i)=><p key={i}>{w}</p>)}</div>}
-    <p className="muted tiny">Research generated {date(result.generatedAt)}. Not financial advice. Headlines and price movements do not establish causation. Estimates do not incorporate company fundamentals, news effects, or transaction costs and have not been externally validated.</p>
+    <p className="muted tiny">Research generated {date(result.generatedAt)}. Not financial advice. Headlines and price movements do not establish causation. Estimates can incorporate dated earnings, historical news and market proxies when available. Current ratios, geopolitical headlines, and macroeconomic releases are not inserted into historical training. No live trading validation.</p>
    </div>}
   </>}
  </section>;

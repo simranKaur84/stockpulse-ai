@@ -47,3 +47,6 @@ Use the existing Vercel `stockpulse-ai` project linked to `simranKaur84/stockpul
 - Historical predictions are not news-aware, not forward-validated in live trading, and not guaranteed to be calibrated. Use holdout performance and sourcing when interpreting outputs.
 - The simple keyword-based news score can fail on negation, satire, context and ambiguous tickers.
 - Never automatically trade or issue unqualified buy/sell instructions based on the current model.
+
+## Enhanced historical feature model
+Predictions may use SPY broad-market history, GLD safe-haven history, publication-dated Finnhub company news, and dated earnings surprise events, in addition to price-only features. Dated historical data is mandatory for training. A one-day news/earnings embargo avoids using publication-day information that may arrive after the price close. If provider data is insufficient the model falls back to price-only analysis. Today's P/E and other ratios are never backfilled into historical rows. General macro/geopolitical news is displayed for research but is NOT a model-training feature without a licensed, timestamped historical corpus. This model is experimental and not live-trading validated.
