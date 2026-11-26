@@ -16,21 +16,21 @@ function ForecastPanel({item,label}:{item:Intelligence["short"];label:string}){
  return <div className="marketforecast"><div className="muted">{label} · {item.horizonDays} trading days</div><h3>{item.direction==="up"?<TrendingUp size={21}/>:item.direction==="down"?<TrendingDown size={21}/>:<ShieldAlert size={21}/>} {signal}</h3><p>{item.probabilityUp===null?"Probability withheld":pct(item.probabilityUp)+" estimated upward probability"}</p><div className="muted tiny">Training observations: {item.sampleSize} · Holdout: {item.testSize}</div><div className="muted tiny">Brier: {item.brierScore??"—"} · Baseline: {item.baselineBrier??"—"} · Holdout accuracy: {item.accuracy===null?"—":pct(item.accuracy)}</div><p className="tiny muted">{item.note}</p></div>;
 }
 export function MarketIntelligence({items}:{items:Item[]}){
- const [selected,setSelected]=useState(""),[result,setResult]=useState<Intelligence|null>(null);
+ const [selected,setSelected]=useState(items[0]?.id||""),[result,setResult]=useState<Intelligence|null>(null);
  const [error,setError]=useState(""),[loading,setLoading]=useState(false),[refresh,setRefresh]=useState(0);
- const selectedItem=items.find(i=>i.id===selected);
- useEffect(()=>{if(!items.some(i=>i.id===selected)){setSelected(items[0]?.id||"")}},[items,selected]);
+ const selectedItem=items.find(i=>i.id===selected)||items[0];
+ const selectedSymbol=selectedItem?.symbol,selectedExchange=selectedItem?.exchange;
  useEffect(()=>{
-  if(!selectedItem){return}
+  if(!selectedSymbol||!selectedExchange){return}
   const controller=new AbortController();
   // Synchronize results to the selected symbol, and discard stale responses.
   // This setState intentionally clears data while new research loads.
-  fetch("/api/intelligence?"+new URLSearchParams({symbol:selectedItem.symbol,exchange:selectedItem.exchange}),{signal:controller.signal})
+  fetch("/api/intelligence?"+new URLSearchParams({symbol:selectedSymbol,exchange:selectedExchange}),{signal:controller.signal})
    .then(async r=>{const payload=await r.json();if(!r.ok)throw new Error(payload.error||"Research unavailable");return payload as Intelligence})
    .then(data=>{if(!controller.signal.aborted){setResult(data);setError("");setLoading(false)}})
    .catch(e=>{if(!controller.signal.aborted){setResult(null);setError(e instanceof Error?e.message:"Request failed");setLoading(false)}});
   return()=>controller.abort();
- },[selectedItem?.symbol,selectedItem?.exchange,refresh]);
+ },[selectedSymbol,selectedExchange,refresh]);
  function choose(value:string){setSelected(value);setResult(null);setError("");setLoading(true)}
  function reload(){setResult(null);setError("");setLoading(true);setRefresh(n=>n+1)}
  return <section className="card marketresearch" style={{marginTop:22}}>
