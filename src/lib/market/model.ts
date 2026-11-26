@@ -12,7 +12,7 @@ export function features(points:PricePoint[],i:number):number[]|null{
  return [1,Math.max(-2,Math.min(2,(p/prev-1)*10)),Math.max(-2,Math.min(2,(p/month-1)*5)),Math.min(2,vol*25)];
 }
 function train(samples:Sample[]):number[]{
- let w=[0,0,0,0];
+ const w=[0,0,0,0];
  for(let epoch=0;epoch<250;epoch++){
   const g=[0,0,0,0];
   for(const s of samples){const d=sigmoid(w.reduce((a,b,j)=>a+b*s.x[j],0))-s.y;for(let k=0;k<4;k++)g[k]+=d*s.x[k];}
