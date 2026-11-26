@@ -1,7 +1,8 @@
 import {forecast,headlineTone,type PricePoint} from "./model";
 export type Article={title:string;url:string;domain:string;published:string;country:string;sentiment:number};
 export type Quote={price:number;changePercent:number|null;currency:string;asOf:string;source:string;delayed:boolean};
-export type Intelligence={symbol:string;exchange:string;quote:Quote|null;history:PricePoint[];articles:Article[];macroArticles:Article[];profile:{name:string;industry:string;website:string}|null;short:ReturnType<typeof forecast>;long:ReturnType<typeof forecast>;newsTone:number|null;warnings:string[];generatedAt:string;};
+export type Fundamentals={marketCapMillions:number|null;peTTM:number|null;epsTTM:number|null;high52Week:number|null;low52Week:number|null};
+export type Intelligence={fundamentals:Fundamentals|null;symbol:string;exchange:string;quote:Quote|null;history:PricePoint[];articles:Article[];macroArticles:Article[];profile:{name:string;industry:string;website:string}|null;short:ReturnType<typeof forecast>;long:ReturnType<typeof forecast>;newsTone:number|null;warnings:string[];generatedAt:string;};
 const TRUSTED=["reuters.com","apnews.com","bloomberg.com","ft.com","wsj.com","cnbc.com","marketwatch.com","finance.yahoo.com","economictimes.indiatimes.com","moneycontrol.com","livemint.com","business-standard.com","thehindu.com","bbc.com","sec.gov","nseindia.com","bseindia.com"];
 const fetchText=async(url:string)=>{const r=await fetch(url,{signal:AbortSignal.timeout(9500),headers:{"User-Agent":"StockPulseResearch/1.0"},next:{revalidate:900}});if(!r.ok)throw new Error("Source returned HTTP "+r.status);return r.text()};
 const fetchJson=async(url:string):Promise<unknown>=>JSON.parse(await fetchText(url));
@@ -17,7 +18,7 @@ export async function getIntelligence(symbol:string,exchange:string):Promise<Int
  const twelve=process.env.TWELVE_DATA_API_KEY;
  const stockCode=indian?symbol+(exchange==="NSE"?".NS":".BO"):symbol;
  const dailySymbol=indian?null:symbol.toLowerCase()+".us";
- let quote:Quote|null=null,liveQuote:Quote|null=null,history:PricePoint[]=[],profile:Intelligence["profile"]=null,articles:Article[]=[],macroArticles:Article[]=[];
+ let quote:Quote|null=null,liveQuote:Quote|null=null,history:PricePoint[]=[],profile:Intelligence["profile"]=null,fundamentals:Fundamentals|null=null,articles:Article[]=[],macroArticles:Article[]=[];
  const promises:Promise<void>[]=[];
  promises.push((async()=>{
   // Prefer a licensed global provider when configured, with a free US historical fallback.
@@ -54,6 +55,13 @@ export async function getIntelligence(symbol:string,exchange:string):Promise<Int
    const price=numeric(raw.c);if(price&&price>0){liveQuote={price,changePercent:numeric(raw.dp),currency:indian?"INR":"USD",asOf:new Date().toISOString(),source:"Finnhub quote",delayed:false}};
   }catch{warnings.push("Finnhub live quote unavailable.");}})());
   promises.push((async()=>{try{
+   const raw=await fetchJson("https://finnhub.io/api/v1/stock/metric?"+new URLSearchParams({symbol:stockCode,metric:"all",token:key})) as {metric?:Record<string,unknown>};
+   if(raw.metric){
+    const m=raw.metric;
+    fundamentals={marketCapMillions:numeric(m.marketCapitalization),peTTM:numeric(m.peTTM),epsTTM:numeric(m.epsTTM),high52Week:numeric(m["52WeekHigh"]),low52Week:numeric(m["52WeekLow"])};
+   }
+  }catch{warnings.push("Company fundamentals unavailable.");}})());
+  promises.push((async()=>{try{
    const raw=await fetchJson("https://finnhub.io/api/v1/stock/profile2?"+new URLSearchParams({symbol:stockCode,token:key})) as Record<string,unknown>;
    if(raw.name)profile={name:String(raw.name),industry:String(raw.finnhubIndustry||"Unknown"),website:String(raw.weburl||"")};
   }catch{warnings.push("Company profile unavailable.");}})());
@@ -77,5 +85,5 @@ export async function getIntelligence(symbol:string,exchange:string):Promise<Int
  if(liveQuote)quote=liveQuote;
  const newsTone=articles.length?+(articles.reduce((a,n)=>a+n.sentiment,0)/articles.length).toFixed(2):null;
  if(!key)warnings.push("Configure FINNHUB_API_KEY for live quotes and company profiles; daily US closing data is available when the public feed responds.");
- return{symbol,exchange,quote,history:history.slice(-120),articles,macroArticles,profile,short:forecast(history,5),long:forecast(history,20),newsTone,warnings,generatedAt:new Date().toISOString()};
+ return{symbol,exchange,quote,history:history.slice(-120),articles,macroArticles,profile,fundamentals,short:forecast(history,5),long:forecast(history,20),newsTone,warnings,generatedAt:new Date().toISOString()};
 }
