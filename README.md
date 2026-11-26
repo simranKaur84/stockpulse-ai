@@ -5,7 +5,7 @@ StockPulse AI is a Next.js 16 / Supabase application for private equity watchlis
 ## Functionality
 - User sign-up, login, email verification, password recovery and private watchlists from Phase 1.
 - Stock research endpoint `/api/intelligence?symbol=AAPL&exchange=NASDAQ` with server-side authorization and watchlist ownership verification.
-- US daily close history (Stooq), quote snapshots where supported, optional Finnhub quotes/profiles, public GDELT news discovery, manually curated trusted publisher filter.
+- US daily close history (Stooq), quote snapshots where supported, optional Finnhub quotes/profiles and Twelve Data global price coverage, company-specific and worldwide macro GDELT news discovery, manually curated trusted publisher filter.
 - 5-session and 20-session historical direction models: logistic regression trained on lagged price features and evaluated on a time-ordered holdout, with a purge at the training/test boundary. Probabilities are **withheld when the model fails to beat a naive base-rate benchmark**.
 - News headline keyword score displayed separately, not incorrectly described as a validated predictive model.
 - Research dashboard with quote provenance, history chart, linked headlines and data limitations.
@@ -20,6 +20,7 @@ StockPulse AI is a Next.js 16 / Supabase application for private equity watchlis
    NEXT_PUBLIC_SUPABASE_URL=https://tzaqtyoriwjxoksnagjd.supabase.co
    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=<the StockPulse project's publishable key>
    FINNHUB_API_KEY=<optional server-side API key>
+   TWELVE_DATA_API_KEY=<optional server-side global market-data key>
    ```
 4. In the dedicated StockPulse Supabase project, apply `supabase/migrations/20261118000000_create_watchlists.sql`, if not yet applied.
 5. Supabase Auth > URL Configuration: configure the actual frontend origin as Site URL, add `https://YOUR_DEPLOYED_DOMAIN/auth/callback` and `http://localhost:3000/auth/callback` as redirect URLs.
@@ -36,7 +37,7 @@ npm run build
 The `npm test` command checks forecast input validation, training/holdout metrics, no-data fallback, and basic headline scoring. End-to-end Supabase account flows and live provider quality require integration testing with the dedicated project.
 
 ## Deployment
-Use the existing Vercel `stockpulse-ai` project linked to `simranKaur84/stockpulse-ai`. Configure `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` for Production, Preview, and Development, and redeploy after adding them. Keep `FINNHUB_API_KEY` server-side only. Never use the Canuck Motors database or service-role credentials.
+Use the existing Vercel `stockpulse-ai` project linked to `simranKaur84/stockpulse-ai`. Configure `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` for Production, Preview, and Development, and redeploy after adding them. Keep `FINNHUB_API_KEY` and `TWELVE_DATA_API_KEY` server-side only. Never use the Canuck Motors database or service-role credentials.
 
 ## Data and interpretation limitations
 - Live provider results vary by market, coverage, subscription level and rate limit.
