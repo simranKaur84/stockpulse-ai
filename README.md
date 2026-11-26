@@ -7,6 +7,8 @@ StockPulse AI is a Next.js 16 / Supabase application for private equity watchlis
 - Stock research endpoint `/api/intelligence?symbol=AAPL&exchange=NASDAQ` with server-side authorization and watchlist ownership verification.
 - US daily close history (Stooq), quote snapshots where supported, optional Finnhub quotes/profiles and Twelve Data global price coverage, company-specific and worldwide macro GDELT news discovery, manually curated trusted publisher filter.
 - 5-session and 20-session historical direction models: logistic regression trained on lagged price features and evaluated on a time-ordered holdout, with a purge at the training/test boundary. Probabilities are **withheld when the model fails to beat a naive base-rate benchmark**.
+- Finnhub company fundamentals (market capitalization, P/E, EPS and 52-week price range) when supported, with source attribution.
+- General global macro news separated from company-specific news.
 - News headline keyword score displayed separately, not incorrectly described as a validated predictive model.
 - Research dashboard with quote provenance, history chart, linked headlines and data limitations.
 
