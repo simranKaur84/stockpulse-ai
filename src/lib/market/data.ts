@@ -8,7 +8,7 @@ const fetchText=async(url:string)=>{const r=await fetch(url,{signal:AbortSignal.
 const fetchJson=async(url:string):Promise<unknown>=>JSON.parse(await fetchText(url));
 function sourceDomain(value:string){try{return new URL(value).hostname.toLowerCase().replace(/^www\./,"")}catch{return ""}}
 function trusted(host:string){return TRUSTED.some(d=>host===d||host.endsWith("."+d))}
-function numeric(value:unknown){const n=Number(value);return Number.isFinite(n)?n:null}
+function numeric(value:unknown){if(value===null||value===undefined||value==="")return null;const n=Number(value);return Number.isFinite(n)?n:null}
 const safeSymbol=(value:string)=>/^[A-Z0-9.\-]{1,20}$/.test(value);
 export async function getIntelligence(symbol:string,exchange:string):Promise<Intelligence>{
  if(!safeSymbol(symbol)||!["NASDAQ","NYSE","NSE","BSE"].includes(exchange))throw new Error("Invalid symbol or exchange.");
