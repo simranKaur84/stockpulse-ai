@@ -41,7 +41,6 @@ export async function getIntelligence(symbol:string,exchange:string):Promise<Int
    if(raw.name)profile={name:String(raw.name),industry:String(raw.finnhubIndustry||"Unknown"),website:String(raw.weburl||"")};
   }catch{warnings.push("Company profile unavailable.");}})());
  }
- const query=profile?.name||symbol;
  // Use the exchange alongside the ticker to reduce false matches with common words.
  promises.push((async()=>{try{
   const term=indian?"\""+symbol+"\" India stock":("\""+symbol+"\" (stock OR shares OR earnings OR market)");
